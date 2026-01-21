@@ -42,7 +42,7 @@ export async function getReturnUrl(defaulUrl: string) {
 }
 
 export async function createStripeCheckoutSession(tier: TierType) {
-  const referer = await getServerReturnUrl();
+  const referer = await getReturnUrl("");
   try {
     const { user } = await isAuthorized(["POSTER", "SOLVER"]);
     if (!SubPriceMap[tier]) throw new Error("Plan not found");
@@ -52,9 +52,28 @@ export async function createStripeCheckoutSession(tier: TierType) {
     if (!user.stripeCustomerId) {
       const [newCustomerId, err] = await createStripeCustomer(user);
       if (err) {
-        throw new Error("internal error! Try again");
+        throw new Error("Internal error! Try again");
       }
       customerId = newCustomerId;
+    }
+    if (user.role === "SOLVER") {
+      const [session, error] = await to(
+        stripe.billingPortal.sessions.create({
+          customer: user.stripeCustomerId!,
+          return_url: referer,
+        }),
+      );
+      if (error) {
+        logger.error(
+          `failed to generate stripe Billing Portal for user ${user.id}. cause ${error.message}`,
+          {
+            message: error.message,
+            cause: error.cause,
+          },
+        );
+        throw new Error("Internal error! Try again");
+      }
+      redirect(session.url);
     }
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -117,7 +136,7 @@ export async function upgradeSolverToPlus(userId: string) {
 }
 
 export async function createCancelSession() {
-  const referer = await getServerReturnUrl();
+  const referer = await getReturnUrl("");
   const { user } = await isAuthorized(["POSTER", "SOLVER"]);
   logger.info("creating cancel Session for User: " + user.id, {
     userId: user.id,

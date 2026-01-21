@@ -15,16 +15,26 @@ export default function RegisterPage() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
-
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const submitHandler = async (values: registerInferedTypes) => {
     startTransition(async () => {
       setError("");
       setSuccess("");
       try {
+        if (!captchaToken) {
+          setError("Please complete the captcha");
+          return;
+        }
+
         const { data, error } = await authClient.signUp.email({
           email: values.email,
           password: values.password,
           name: values.name,
+          fetchOptions: {
+            headers: {
+              "x-captcha-response": captchaToken,
+            },
+          },
         });
 
         if (error) {
@@ -59,6 +69,8 @@ export default function RegisterPage() {
           isPending={isPending}
           error={error}
           success={success}
+          setCaptchaToken={setCaptchaToken}
+          captchaToken={captchaToken}
         />
       </div>
       <div className="inset-0 md:flex items-center justify-center w-full hidden">

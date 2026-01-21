@@ -24,13 +24,17 @@ import SocialButtons from "../../components/socialButtons";
 import FormError from "../../register/components/loginFormError";
 import FormSuccess from "../../register/components/loginFormSuccess";
 import { loginFormSchema, loginInferedTypes } from "../../server/auth-types";
-
+import { Turnstile } from "@marsidev/react-turnstile";
+import { Dispatch, SetStateAction } from "react";
+import { env } from "@/env/client";
 type LoginCardProps = {
   myformController: UseFormReturn<loginInferedTypes>;
   submitHandler: (values: z.infer<typeof loginFormSchema>) => Promise<void>;
   isPending: boolean;
   error: string;
   success: string;
+  setCaptchaToken: Dispatch<SetStateAction<string | null>>;
+  captchaToken: string | null;
 };
 
 export default function LoginCard({
@@ -39,6 +43,8 @@ export default function LoginCard({
   isPending,
   error,
   success,
+  setCaptchaToken,
+  captchaToken,
 }: LoginCardProps) {
   return (
     <Card className="flex gap-4 w-full max-w-md">
@@ -52,7 +58,8 @@ export default function LoginCard({
         <Form {...myformController}>
           <form
             onSubmit={myformController.handleSubmit(submitHandler)}
-            className="flex flex-col  gap-4 ">
+            className="flex flex-col  gap-4 "
+          >
             <FormField
               control={myformController.control}
               name="email"
@@ -86,7 +93,8 @@ export default function LoginCard({
             <Button
               className="px-28 py-6 mt-4"
               variant={"default"}
-              disabled={isPending}>
+              disabled={isPending}
+            >
               {isPending ? <Loader2 className="animate-spin" /> : "Login"}
             </Button>
           </form>
@@ -94,7 +102,15 @@ export default function LoginCard({
 
         <ContinueSeperatorBtn />
         <div className="flex gap-4 mb-4 w-full items-center mt-5">
-          <SocialButtons />
+          <SocialButtons captchaToken={captchaToken} />
+        </div>
+        <div className="flex justify-center">
+          <Turnstile
+            siteKey={env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+            onSuccess={(token) => setCaptchaToken(token)}
+            onExpire={() => setCaptchaToken(null)}
+            onError={() => setCaptchaToken(null)}
+          />
         </div>
       </CardContent>
       <CardFooter className="flex place-content-center text-foreground">

@@ -28,6 +28,9 @@ import {
 } from "../../server/auth-types";
 import FormError from "./loginFormError";
 import FormSuccess from "./loginFormSuccess";
+import { Turnstile } from "@marsidev/react-turnstile";
+import { env } from "@/env/client";
+import { Dispatch, SetStateAction } from "react";
 
 type registerCardProps = {
   myformController: UseFormReturn<registerInferedTypes>;
@@ -35,6 +38,8 @@ type registerCardProps = {
   isPending: boolean;
   error: string;
   success: string;
+  setCaptchaToken: Dispatch<SetStateAction<string | null>>;
+  captchaToken: string | null;
 };
 
 export default function RegisterCard({
@@ -43,6 +48,8 @@ export default function RegisterCard({
   isPending,
   error,
   success,
+  captchaToken,
+  setCaptchaToken,
 }: registerCardProps) {
   return (
     <Card className="flex gap-4 w-full max-w-md">
@@ -54,7 +61,8 @@ export default function RegisterCard({
         <Form {...myformController}>
           <form
             onSubmit={myformController.handleSubmit(submitHandler)}
-            className="flex flex-col  gap-2 ">
+            className="flex flex-col  gap-2 "
+          >
             <FormField
               control={myformController.control}
               name="name"
@@ -104,14 +112,23 @@ export default function RegisterCard({
             <Button
               className="px-28 py-6 mt-4"
               variant={"default"}
-              disabled={isPending}>
+              disabled={isPending}
+            >
               {isPending ? <Loader2 className="animate-spin" /> : "Register"}
             </Button>
           </form>
         </Form>
         <ContinueSeperatorBtn />
         <div className="flex gap-4 mb-4 w-full items-center mt-5">
-          <SocialButtons />
+          <SocialButtons captchaToken={captchaToken} />
+        </div>
+        <div className="flex justify-center">
+          <Turnstile
+            siteKey={env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+            onSuccess={(token) => setCaptchaToken(token)}
+            onExpire={() => setCaptchaToken(null)}
+            onError={() => setCaptchaToken(null)}
+          />
         </div>
       </CardContent>
       <CardFooter className="flex place-content-center text-foreground">

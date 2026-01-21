@@ -147,7 +147,7 @@ export const MentorshipSessionProvider = ({
   );
   const contextValue = useMemo(
     () => ({
-      mentorshipSession: session,
+      mentorshipSession: session!,
       chats,
       updateSession,
       setChats,

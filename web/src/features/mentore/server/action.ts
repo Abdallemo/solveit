@@ -9,6 +9,7 @@ import {
   MentorshipSessionTable,
   PaymentPorposeEnumType,
   PaymentTable,
+  UserTable,
 } from "@/drizzle/schemas";
 import { env } from "@/env/server";
 import {
@@ -447,11 +448,13 @@ export async function updateMentorBooking(
 
 export async function getMentorBookingSessions() {
   const { user } = await isAuthorized(["POSTER", "SOLVER"]);
+
+  const authorizedCondition =
+    user.role === "POSTER"
+      ? eq(MentorshipBookingTable.posterId, user.id)
+      : eq(MentorshipBookingTable.solverId, user.id);
   const where = and(
-    or(
-      eq(MentorshipBookingTable.posterId, user.id),
-      eq(MentorshipBookingTable.solverId, user.id),
-    ),
+    authorizedCondition,
     eq(MentorshipBookingTable.status, "PAID"),
   );
   const result = await db.query.MentorshipBookingTable.findMany({
@@ -474,42 +477,87 @@ export async function getMentorBookingSessions() {
 
   return { result, totalCount: totol };
 }
+async function getMentorSessionQuery(sessionId: string) {
+  const { user } = await isAuthorized(["POSTER", "SOLVER"]);
+  const [result] = await db
+    .select({
+      session: MentorshipSessionTable,
+      booking: MentorshipBookingTable,
+      poster: {
+        id: UserTable.id,
+        email: UserTable.email,
+        name: UserTable.name,
+        image: UserTable.image,
+        role: UserTable.role,
+        emailVerified: UserTable.emailVerified,
+      },
+      solver: MentorshipProfileTable,
+    })
+    .from(MentorshipSessionTable)
+    .innerJoin(
+      MentorshipBookingTable,
+      eq(MentorshipSessionTable.bookingId, MentorshipBookingTable.id),
+    )
+    .innerJoin(UserTable, eq(MentorshipBookingTable.posterId, UserTable.id))
+    .innerJoin(
+      MentorshipProfileTable,
+      eq(MentorshipBookingTable.solverId, MentorshipProfileTable.userId),
+    )
+    .where(
+      and(
+        eq(MentorshipSessionTable.id, sessionId),
+        user.role === "POSTER"
+          ? eq(MentorshipBookingTable.posterId, user.id)
+          : eq(MentorshipBookingTable.solverId, user.id),
+      ),
+    )
+    .limit(1);
+  return result;
+}
 export async function getMentorSession(sessionId: string) {
   if (!sessionId) return;
-  try {
-    const [session, chats] = await Promise.all([
-      db.query.MentorshipSessionTable.findFirst({
-        where: (tb, fn) => fn.eq(tb.id, sessionId),
-        with: {
-          bookedSessions: {
-            with: {
-              poster: { columns: publicUserColumns },
-              solver: true,
-            },
-          },
-        },
-      }),
-      db.query.MentorshipChatTable.findMany({
-        where: (tb, fn) => fn.eq(tb.sessionId, sessionId),
-        with: {
-          chatFiles: true,
-          chatOwner: {
-            columns: publicUserColumns,
-          },
-        },
-        orderBy: (tb, fn) => fn.asc(tb.createdAt),
-      }),
-    ]);
 
-    return { session: session ?? null, chats };
-  } catch (error) {
+  const [row, err] = await to(getMentorSessionQuery(sessionId));
+
+  if (err) {
     logger.error("unable to fetch the session info", {
-      message: (error as Error).message,
-      cause: (error as Error).cause,
-      stack: (error as Error).stack,
+      message: (err as Error).message,
+      stack: (err as Error).stack,
+    });
+  }
+
+  if (!row) {
+    throw new SessionNotFoundError();
+  }
+  const [chats, chatErr] = await to(
+    db.query.MentorshipChatTable.findMany({
+      where: (tb, fn) => fn.eq(tb.sessionId, sessionId),
+      with: {
+        chatFiles: true,
+        chatOwner: { columns: publicUserColumns },
+      },
+      orderBy: (tb, fn) => fn.asc(tb.createdAt),
+    }),
+  );
+  if (chatErr) {
+    logger.error("unable to fetch the session info", {
+      message: (chatErr as Error).message,
+      stack: (chatErr as Error).stack,
     });
     throw new SessionNotFoundError();
   }
+
+  return {
+    session: {
+      ...row.session,
+      bookedSessions: {
+        ...row.booking,
+        poster: row.poster,
+        solver: row.solver,
+      },
+    },
+    chats,
+  };
 }
 async function getSessionById(sessionId: string) {
   try {

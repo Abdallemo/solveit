@@ -7,7 +7,7 @@ import { CreateUserSubsciption } from "@/features/subscriptions/server/action";
 import { Time } from "@/lib/utils/utils";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { jwt } from "better-auth/plugins";
+import { jwt, captcha } from "better-auth/plugins";
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
@@ -57,7 +57,13 @@ export const auth = betterAuth({
     },
   },
 
-  plugins: [jwt()],
+  plugins: [
+    jwt(),
+    captcha({
+      provider: "cloudflare-turnstile",
+      secretKey: env.TURNSTILE_SECRET_KEY,
+    }),
+  ],
 
   databaseHooks: {
     user: {

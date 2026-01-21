@@ -8,10 +8,13 @@ import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { FaGithub } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
+import { toast } from "sonner";
 
 type Provider = "github" | "google";
-
-export default function SocialButtons() {
+type SocialButtonProps = {
+  captchaToken: string | null;
+};
+export default function SocialButtons({ captchaToken }: SocialButtonProps) {
   const [pendingProviders, setPendingProviders] = useState<
     Record<Provider, boolean>
   >({
@@ -20,10 +23,23 @@ export default function SocialButtons() {
   });
 
   const handleSignIn = async (provider: Provider) => {
+    if (!captchaToken) {
+      toast.error("Please complete the captcha verification first.");
+      return;
+    }
+
     setPendingProviders((prev) => ({ ...prev, [provider]: true }));
 
     try {
-      await signIn.social({ provider: provider, callbackURL: "/dashboard" });
+      await signIn.social({
+        provider: provider,
+        callbackURL: "/dashboard",
+        fetchOptions: {
+          headers: {
+            "x-captcha-response": captchaToken,
+          },
+        },
+      });
     } catch (error) {
       console.error(`Error signing in with ${provider}:`, error);
     } finally {
