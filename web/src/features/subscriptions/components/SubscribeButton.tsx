@@ -22,18 +22,15 @@ export function SubscribeButton({
     <Button
       type="submit"
       className={cn("w-full", className)}
-      disabled={
-        pending ||
-        currentTier === tier ||
-        (currentTier === "SOLVER++" && tier !== "POSTER")
-      }
+      disabled={pending || currentTier === tier}
       variant={
         currentTier === tier
           ? "default"
           : tier === "SOLVER"
-          ? "default"
-          : "outline"
-      }>
+            ? "default"
+            : "outline"
+      }
+    >
       {pending ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />

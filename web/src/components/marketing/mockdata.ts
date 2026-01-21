@@ -103,21 +103,21 @@ export const stats = [
 export const testimonials = [
   {
     quote:
-      "SolveIt helped me find a tutor for my calculus exam in minutes. The escrow system gave me peace of mind.",
-    author: "Sarah M.",
-    role: "Computer Science, Year 3",
+      "I was honestly panicking about my FYP deadline. I posted my task, and a Solver picked it up within a few hours. It felt really safe knowing the app held the money and I didn't have to worry about getting scammed.",
+    author: "Aiman H.",
+    role: "Poster (Final Year Student)",
   },
   {
     quote:
-      "As a solver, I've earned enough to cover my textbooks. The platform is intuitive and payments are always on time.",
+      "This is way better than a normal part-time job. I just check the app between classes, pick a task I know I can do, and upload the work. The payment comes through automatically, so it's super stress-free.",
     author: "James K.",
-    role: "Engineering, Year 4",
+    role: "Solver (Year 3 Engineering)",
   },
   {
     quote:
-      "The AI matching is incredible. It connected me with someone who specialized in exactly what I needed help with.",
-    author: "Emily R.",
-    role: "Mathematics, Year 2",
+      "Becoming a Mentor was a great move. I love that I don't have to mess around with Zoom links or Discord—the video call is built right into the chat. It makes helping people so much smoother.",
+    author: "Sarah M.",
+    role: "Solver++ (Mentor)",
   },
 ];
 

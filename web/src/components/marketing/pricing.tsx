@@ -36,17 +36,15 @@ export default function Pricing() {
     },
   });
   const switchSubs = async (plan: Plan) => {
-    switch (plan.teir) {
-      case "POSTER":
+    try {
+      if (plan.teir === "POSTER") {
         await cancelSubscriptionSession();
-        break;
-      case "SOLVER":
+      } else {
         await createSubscription(plan.teir);
-        break;
-      default:
-        break;
-    }
+      }
+    } catch (e) {}
   };
+
   return (
     <section id="pricing" className="py-24 md:py-32 ">
       <div className="container max-w-screen-xl">
@@ -59,7 +57,7 @@ export default function Pricing() {
           </p>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-2 max-w-4xl mx-auto">
+        <div className="grid gap-8 md:grid-cols-3 max-w-7xl mx-auto">
           {plans.map((plan, index) => (
             <motion.div
               key={plan.name}
@@ -128,7 +126,7 @@ export function PricingSkeleton() {
           <div className="h-9 w-64 rounded-lg bg-muted shimmer-wave" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
           {plans.map((plan, index) => (
             <Card key={index} className="flex flex-col justify-between h-full">
               <CardHeader>

@@ -40,6 +40,9 @@ export const env = createEnv({
     STRIPE_CONNECT_WEBHOOK_SECRET: z.string({
       required_error: "STRIPE_CONNECT_WEBHOOK_SECRET is missing",
     }),
+    TURNSTILE_SECRET_KEY: z.string({
+      required_error: "TURNSTILE_SECRET_KEY is missing",
+    }),
     STRIPE_TEST_MODE: z
       .string({ required_error: "STRIPE_TEST_MODE is missing" })
       .transform((val) => {

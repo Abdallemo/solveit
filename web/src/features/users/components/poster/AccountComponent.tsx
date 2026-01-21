@@ -137,7 +137,7 @@ export default function AccountComponent({
   };
   if (isLoading) return <UserPreferencesLoading />;
   return (
-    <div className="w-full  mt-5" suppressHydrationWarning>
+    <div className="w-full  my-5" suppressHydrationWarning>
       <div className="flex flex-col items-center gap-5 px-6 ">
         <CardWrapper
           title="User Preferences"

@@ -24,6 +24,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState<string>("");
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const submitHandler = async (values: loginInferedTypes) => {
     startTransition(async () => {
       setError("");
@@ -31,18 +32,23 @@ export default function LoginPage() {
 
       myformController.reset();
 
-      await authClient.signIn.email(
-        {
-          email: values.email,
-          password: values.password,
-          callbackURL: "/dashboard",
-        },
-        {
+      if (!captchaToken) {
+        setError("Please complete the captcha");
+        return;
+      }
+      await authClient.signIn.email({
+        email: values.email,
+        password: values.password,
+        callbackURL: "/dashboard",
+        fetchOptions: {
+          headers: {
+            "x-captcha-response": captchaToken,
+          },
           onError: (ctx) => {
             setError(ctx.error.message);
           },
         },
-      );
+      });
     });
   };
 
@@ -66,6 +72,8 @@ export default function LoginPage() {
           error={error || oAuthConflictError}
           success={success}
           isPending={isPending}
+          setCaptchaToken={setCaptchaToken}
+          captchaToken={captchaToken}
         />
       </div>
 
