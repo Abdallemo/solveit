@@ -12,6 +12,11 @@ SolveIt connects students in a secure and structured environment to **post, pick
 * **Real-time collaboration:** Messaging and notifications
 * **AI moderation:** Automatic detection of cheating and inappropriate content
 * **Structured workspace:** Organize and submit solutions seamlessly
+<img width="2763" height="1645" alt="image" src="https://github.com/user-attachments/assets/8e01e7d9-1318-4218-aec6-c5d9bb49fb77" />
+  <br/>
+  <br/>
+  <br/>
+
 
 ![SolveIt Dashboard](https://github.com/user-attachments/assets/bb5ee234-75cd-4e5d-9904-648dc25f7d7b)
 
