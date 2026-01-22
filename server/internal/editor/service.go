@@ -7,6 +7,7 @@ import (
 	"github/abdallemo/solveit-saas/internal/file"
 	"log"
 	"mime/multipart"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -32,13 +33,26 @@ type editorFileResp struct {
 	Url      string `json:"url"`
 }
 
-func (s *Service) CreateEditorFiles(ctx context.Context, files []*multipart.FileHeader, scope string) (editorFileResp, error) {
+func (s *Service) CreateEditorFiles(ctx context.Context, reader *multipart.Reader, scope string) (editorFileResp, error) {
 	id := uuid.New()
 
-	uploaded, failed := s.fileService.ProcessBatchUpload(files, scope, id)
+	uploaded, failed := s.fileService.ProcessBatchUpload(reader, scope, id,
+		file.UploadConfig{
+			MaxFileSize: int64(file.MBToBytes(5)),
+			Validator: func(part *multipart.Part) error {
+
+				if !strings.HasPrefix(part.Header.Get("Content-Type"), "image/") {
+					return errors.New("invalid file type: only images are allowed")
+				}
+				return nil
+			}})
 
 	if len(failed) > 0 {
-		return editorFileResp{}, errors.New("failed to upload")
+		return editorFileResp{}, errors.New(failed[0].Error)
+	}
+
+	if len(uploaded) == 0 {
+		return editorFileResp{}, errors.New("no files received")
 	}
 
 	editorFile, err := s.store.CreateEditorFile(ctx, database.CreateEditorFileParams{

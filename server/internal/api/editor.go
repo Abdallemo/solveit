@@ -7,16 +7,20 @@ import (
 
 // Editor Resoucre
 func (s *Server) handleCreateEditorFiles(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		sendHTTPError(w, "Unable to parse form", http.StatusBadRequest)
+	reader, err := r.MultipartReader()
+	if err != nil {
+		sendHTTPError(w, "Unable to process upload stream", http.StatusBadRequest)
 		return
 	}
-	files := r.MultipartForm.File["files"]
 
 	status := http.StatusOK
-	UploadFileRes, err := s.EditorService.CreateEditorFiles(r.Context(), files, "editor-images")
+	UploadFileRes, err := s.EditorService.CreateEditorFiles(r.Context(), reader, "editor-images")
 	if err != nil {
-		status = http.StatusInternalServerError
+		status = http.StatusBadRequest
+		WriteJSON(w, struct {
+			Message string `json:"message"`
+		}{Message: err.Error()}, status)
+		return
 	}
 
 	WriteJSON(w, UploadFileRes, status)

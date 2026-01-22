@@ -2,6 +2,7 @@ package api
 
 import (
 	"github/abdallemo/solveit-saas/internal/database"
+	"github/abdallemo/solveit-saas/internal/file"
 	"github/abdallemo/solveit-saas/internal/middleware"
 	"log"
 	"net/http"
@@ -11,13 +12,13 @@ import (
 
 // Chat Resource
 func (s *Server) handleCreateChat(w http.ResponseWriter, r *http.Request) {
-	// parse form
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		sendHTTPError(w, "Unable to parse form", http.StatusBadRequest)
+	reader, err := r.MultipartReader()
+	if err != nil {
+		sendHTTPError(w, "Unable to process upload stream", http.StatusBadRequest)
 		return
 	}
+
 	userID, _ := middleware.GetUserID(r.Context())
-	files := r.MultipartForm.File["files"]
 	message := r.FormValue("message")
 	sessionIDStr := r.FormValue("sessionId")
 	sentToStr := r.FormValue("sentTo")
@@ -39,7 +40,7 @@ func (s *Server) handleCreateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uploadedFiles, _ := s.FileService.ProcessBatchUpload(files, "mentorship", uuid.New())
+	uploadedFiles, _ := s.FileService.ProcessBatchUpload(reader, "mentorship", uuid.New(), file.UploadConfig{})
 
 	chatWithFiles, err := s.ChatService.CreateChatWithFiles(r.Context(),
 		message,

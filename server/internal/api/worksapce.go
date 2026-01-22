@@ -11,12 +11,12 @@ import (
 )
 
 func (s *Server) handleCreateWorkspaceFiles(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		sendHTTPError(w, "Unable to parse form", http.StatusBadRequest)
+	reader, err := r.MultipartReader()
+	if err != nil {
+		sendHTTPError(w, "Unable to process upload stream", http.StatusBadRequest)
 		return
 	}
 
-	files := r.MultipartForm.File["files"]
 	userID, _ := middleware.GetUserID(r.Context())
 	workspaceID, err := uuid.Parse(r.PathValue("workspaceId"))
 
@@ -25,7 +25,7 @@ func (s *Server) handleCreateWorkspaceFiles(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	uploaded, failed, err := s.WorkspaceService.CreateFiles(r.Context(), workspaceID, userID, files)
+	uploaded, failed, err := s.WorkspaceService.CreateFiles(r.Context(), workspaceID, userID, reader)
 
 	if err != nil {
 		log.Printf("Workspace upload error: %v", err)

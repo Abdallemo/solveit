@@ -77,7 +77,20 @@ export const CustomImageExtension = (
                 })
                 .catch((error) => {
                   console.error("Upload failed, removing placeholder:", error);
-                  alert("Image upload failed.");
+
+                  editor.commands.command(({ tr, state }) => {
+                    state.doc.descendants((node, pos) => {
+                      if (
+                        node.type.name === "image" &&
+                        node.attrs["data-temp-id"] === tempId
+                      ) {
+                        tr.delete(pos, pos + node.nodeSize);
+                        return false;
+                      }
+                      return true;
+                    });
+                    return true;
+                  });
                 });
 
               return true;

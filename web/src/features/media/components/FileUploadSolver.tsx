@@ -56,7 +56,7 @@ export default function FileUploadSolver({ className }: FileUploadProps) {
 
     const fileArray = Array.from(newFiles);
 
-    setUploadingFiles(() => [...fileArray]);
+    setUploadingFiles((prev) => [...prev, ...fileArray]);
 
     try {
       const uploadedMeta = await uploadMutate({
@@ -76,7 +76,7 @@ export default function FileUploadSolver({ className }: FileUploadProps) {
       setUploadedFiles((prev) => [...prev, ...newFiles]);
     } catch (e) {
     } finally {
-      setUploadingFiles([]);
+      setUploadingFiles((prev) => prev.filter((f) => !fileArray.includes(f)));
     }
 
     inputRef.current!.value = "";
@@ -141,18 +141,20 @@ export default function FileUploadSolver({ className }: FileUploadProps) {
       {(uploadingFiles.length > 0 || uploadedFiles.length > 0) && (
         <ScrollArea className="flex-1 ">
           <div className="mt-2 space-y-2 h-[100px] overflow-scroll p-2 ">
-            {uploadingFiles.map((file) => (
-              <FileChatCardComps
-                key={file.name}
-                loading
-                file={{
-                  fileName: file.name,
-                  filePath: "",
-                  fileSize: file.size,
-                  fileType: file.type,
-                }}
-              />
-            ))}
+            {uploadingFiles
+              .filter((f) => !uploadedFiles?.some((F) => F.fileName === f.name))
+              .map((file) => (
+                <FileChatCardComps
+                  key={file.name}
+                  loading
+                  file={{
+                    fileName: file.name,
+                    filePath: "",
+                    fileSize: file.size,
+                    fileType: file.type,
+                  }}
+                />
+              ))}
             {uploadedFiles.map((file) => (
               <div key={file.id} className="w-70">
                 <FileChatCardComps
