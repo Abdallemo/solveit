@@ -31,12 +31,14 @@ export default function FileUploadUi({ className }: FileUploadUiProps) {
 
   const { mutateAsync: deleteFile } = useDeleteFileGeneric("draft_task");
   const { mutateAsync: downloadFile } = useDownloadFile();
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
 
   const handleFiles = async (newFiles: FileList | null) => {
     if (!newFiles) return;
     const fileArray = Array.from(newFiles);
 
-    setUploadingFiles(() => [...fileArray]);
+    setUploadingFiles((prev) => [...prev, ...fileArray]);
 
     try {
       const uploadedMeta = await uploadMutate({
@@ -44,18 +46,14 @@ export default function FileUploadUi({ className }: FileUploadUiProps) {
         url: "/tasks/draft/files",
       });
 
-      const newUploadedFiles = [
-        ...(draft.uploadedFiles || []),
-        ...uploadedMeta,
-      ];
-
-      updateDraft({ uploadedFiles: newUploadedFiles });
+      const currentFiles = draftRef.current.uploadedFiles || [];
+      updateDraft({ uploadedFiles: [...currentFiles, ...uploadedMeta] });
     } catch (err) {
       console.error(err);
-      setUploadingFiles(() => []);
+      setUploadingFiles((prev) => []);
     } finally {
+      setUploadingFiles((prev) => prev.filter((f) => !fileArray.includes(f)));
       inputRef.current!.value = "";
-      setUploadingFiles([]);
     }
   };
 
@@ -132,20 +130,27 @@ export default function FileUploadUi({ className }: FileUploadUiProps) {
         (draft.uploadedFiles?.length ?? 0) > 0) && (
         <ScrollArea className="h-40 py-2">
           <div className="space-y-2 h-40">
-            {uploadingFiles.map((file) => (
-              <div key={file.name} className="w-full ">
-                <FileChatCardComps
-                  key={file.name}
-                  loading
-                  file={{
-                    fileName: file.name,
-                    filePath: "",
-                    fileSize: file.size,
-                    fileType: file.type,
-                  }}
-                />
-              </div>
-            ))}
+            {uploadingFiles
+              .filter(
+                (f) =>
+                  !draft.uploadedFiles?.some(
+                    (draftF) => draftF.fileName === f.name,
+                  ),
+              )
+              .map((file) => (
+                <div key={file.name} className="w-full ">
+                  <FileChatCardComps
+                    key={file.name}
+                    loading
+                    file={{
+                      fileName: file.name,
+                      filePath: "",
+                      fileSize: file.size,
+                      fileType: file.type,
+                    }}
+                  />
+                </div>
+              ))}
             {(draft.uploadedFiles || []).map((file) => (
               <div key={file.filePath} className="w-full">
                 <FileChatCardComps

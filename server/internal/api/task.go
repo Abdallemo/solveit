@@ -9,14 +9,14 @@ import (
 
 // DraftTask Resource
 func (s *Server) handleCreateDraftTaskFiles(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		sendHTTPError(w, "Unable to parse form", http.StatusBadRequest)
+	reader, err := r.MultipartReader()
+	if err != nil {
+		sendHTTPError(w, "Unable to process upload stream", http.StatusBadRequest)
 		return
 	}
 
-	files := r.MultipartForm.File["files"]
 	userId, _ := middleware.GetUserID(r.Context())
-	result, _ := s.TaskService.CreateDraftTaskFiles(r.Context(), userId, files)
+	result, _ := s.TaskService.CreateDraftTaskFiles(r.Context(), userId, reader)
 
 	WriteJSON(w, result, 200)
 }

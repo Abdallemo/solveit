@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"sync"
 	"time"
 
 	"mime/multipart"
@@ -12,6 +14,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/uuid"
 )
+
+const (
+	MaxFileSize = 50 << 20
+)
+
+func BytesToMB(bytes int) int {
+	return bytes >> 20
+}
+
+func MBToBytes(mb int) int {
+	return mb << 20
+}
 
 type Service struct {
 	s3Client *s3.Client
@@ -123,68 +137,176 @@ func (s *Service) GetFile(ctx context.Context, key string) (*DownloadedFile, err
 	}, nil
 }
 
-func (s *Service) ProcessBatchUpload(files []*multipart.FileHeader,
-	scope string, id uuid.UUID) ([]FileMeta, []FailedFileError) {
+type UploadConfig struct {
+	MaxFileSize int64
+	Validator   func(part *multipart.Part) error
+}
+
+type uploadResult struct {
+	Success *FileMeta
+	Failure *FailedFileError
+}
+
+func (s *Service) ProcessBatchUpload(reader *multipart.Reader, scope string, id uuid.UUID, config UploadConfig) ([]FileMeta, []FailedFileError) {
+
+	resultsChan := make(chan uploadResult, 50)
+	var wg sync.WaitGroup
+
 	uploaded := []FileMeta{}
 	failed := []FailedFileError{}
 
-	for _, fileHeader := range files {
-		if err := validateSize(fileHeader); err != nil {
-			failed = append(failed, FailedFileError{
-				File:  BuildFileMeta(fileHeader, ""),
-				Error: err.Error(),
-			})
+	maxSize := config.MaxFileSize
+	if maxSize == 0 {
+		maxSize = MaxFileSize
+	}
+
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			continue
+		}
+		if part.FormName() != "files" {
 			continue
 		}
 
-		key, err := s.UploadFileToS3(fileHeader, scope, id)
+		fileName := part.FileName()
+		contentType := part.Header.Get("Content-Type")
+
+		if config.Validator != nil {
+			if err := config.Validator(part); err != nil {
+				failed = append(failed, FailedFileError{
+					File: FileMeta{
+						FileName: fileName,
+						FileType: contentType,
+						FileSize: 0,
+						FilePath: "",
+					},
+					Error: err.Error(),
+				})
+				io.Copy(io.Discard, part)
+				continue
+			}
+		}
+
+		tempFile, err := os.CreateTemp("", "upload-stream-*")
 		if err != nil {
 			failed = append(failed, FailedFileError{
-				File:  BuildFileMeta(fileHeader, ""),
-				Error: fmt.Sprintf("upload error: %v", err),
+				File: FileMeta{
+					FileName: fileName,
+					FileType: contentType,
+					FileSize: 0,
+				},
+				Error: "Server error",
 			})
 			continue
 		}
 
-		uploaded = append(uploaded, BuildFileMeta(fileHeader, key))
+		limitedReader := io.LimitReader(part, maxSize+1) // 1 byte as extra buffer
+		written, err := io.Copy(tempFile, limitedReader)
+
+		if written > maxSize {
+			failed = append(failed, FailedFileError{
+				File: FileMeta{
+					FileName: fileName,
+					FileType: contentType,
+					FileSize: float64(written),
+				},
+				Error: fmt.Sprintf("Exceeded server limit (%dMB)", BytesToMB(int(maxSize))),
+			})
+
+			io.Copy(io.Discard, part)
+			tempFile.Close()
+			os.Remove(tempFile.Name())
+			continue
+		}
+
+		wg.Add(1)
+
+		go s.uploadWorker(&wg, resultsChan, tempFile, fileName, contentType, scope, id, written)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	for res := range resultsChan {
+		if res.Failure != nil {
+			failed = append(failed, *res.Failure)
+		} else if res.Success != nil {
+			uploaded = append(uploaded, *res.Success)
+		}
 	}
 
 	return uploaded, failed
 }
 
-func (s *Service) UploadFileToS3(
-	fh *multipart.FileHeader,
+func (s *Service) uploadWorker(
+	wg *sync.WaitGroup,
+	resultsChan chan<- uploadResult,
+	f *os.File,
+	fName, fType, scope string,
+	id uuid.UUID,
+	size int64,
+) {
+	defer wg.Done()
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	f.Seek(0, 0)
+
+	key, err := s.UploadToS3(f, fName, fType, scope, id)
+
+	if err != nil {
+		resultsChan <- uploadResult{
+			Failure: &FailedFileError{
+				File: FileMeta{
+					FileName: fName,
+					FileType: fType,
+					FileSize: float64(size),
+					FilePath: "",
+				},
+				Error: fmt.Sprintf("upload error: %v", err),
+			},
+		}
+		return
+	}
+
+	resultsChan <- uploadResult{
+		Success: &FileMeta{
+			FileName: fName,
+			FileType: fType,
+			FileSize: float64(size),
+			FilePath: key,
+		},
+	}
+}
+
+func (s *Service) UploadToS3(
+	fileStream io.Reader,
+	fileName string,
+	contentType string,
 	scope string,
 	id uuid.UUID,
 ) (key string, err error) {
 
-	file, err := fh.Open()
-	if err != nil {
-		return "", fmt.Errorf("file open error: %v", err)
-	}
-	defer file.Close()
-
-	key = fmt.Sprintf("%s/%s-%s", scope, id.String(), fh.Filename)
+	key = fmt.Sprintf("%s/%s-%s", scope, id.String(), fileName)
 
 	_, err = s.s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket:      aws.String("solveit"),
 		Key:         aws.String(key),
-		Body:        file,
-		ContentType: aws.String(fh.Header.Get("Content-Type")),
+		Body:        fileStream,
+		ContentType: aws.String(contentType),
 	})
+
 	if err != nil {
 		return "", err
 	}
 
 	return key, nil
-}
-
-// Helper
-func validateSize(fh *multipart.FileHeader) error {
-	if fh.Size >= 50<<20 { // 50MB
-		return fmt.Errorf("Exceeded server limit (50MB)")
-	}
-	return nil
 }
 
 type PresignedResp struct {

@@ -7,24 +7,24 @@ import (
 	"mime/multipart"
 
 	"github/abdallemo/solveit-saas/internal/database"
-	"github/abdallemo/solveit-saas/internal/file" // your file service package
+	"github/abdallemo/solveit-saas/internal/file"
 
 	"github.com/google/uuid"
 )
 
 type Service struct {
 	store       *database.Queries
-	fileService *file.Service // <--- Dependency Injection
+	fileService *file.Service
 }
 
 func NewService(store *database.Queries, fs *file.Service) *Service {
 	return &Service{store: store, fileService: fs}
 }
 
-func (s *Service) CreateFiles(ctx context.Context, workspaceID, userID uuid.UUID, files []*multipart.FileHeader) ([]file.FileMeta, []file.FailedFileError, error) {
+func (s *Service) CreateFiles(ctx context.Context, workspaceID, userID uuid.UUID, reader *multipart.Reader) ([]file.FileMeta, []file.FailedFileError, error) {
 
 	uploadID := uuid.New()
-	uploaded, failed := s.fileService.ProcessBatchUpload(files, "workspace", uploadID)
+	uploaded, failed := s.fileService.ProcessBatchUpload(reader, "workspace", uploadID, file.UploadConfig{})
 
 	if len(uploaded) > 0 {
 		batch := file.NewFileBatch(uploaded)

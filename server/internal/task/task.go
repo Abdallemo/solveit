@@ -28,10 +28,10 @@ func NewTaskService(
 	}
 }
 
-func (s *Service) CreateDraftTaskFiles(ctx context.Context, userId uuid.UUID, files []*multipart.FileHeader) (file.UploadFileRes, error) {
+func (s *Service) CreateDraftTaskFiles(ctx context.Context, userId uuid.UUID, reader *multipart.Reader) (file.UploadFileRes, error) {
 	id := uuid.New()
 
-	uploaded, failed := s.fileService.ProcessBatchUpload(files, "task", id)
+	uploaded, failed := s.fileService.ProcessBatchUpload(reader, "task", id, file.UploadConfig{})
 	upladedByte, _ := json.Marshal(uploaded)
 
 	err := s.store.SaveDraftTaskFiles(ctx, database.SaveDraftTaskFilesParams{
