@@ -56,7 +56,7 @@ SolveIt connects students in a secure and structured environment to **post, pick
 | Frontend       | Next.js (App Router)                    |
 | Backend        | Node.js, Go (WebSockets & APIs)         |
 | Database       | PostgreSQL + Drizzle ORM                |
-| Authentication | NextAuth.js                             |
+| Authentication | better auth                           |
 | Payments       | Stripe (Subscriptions & Escrow)         |
 | AI             | OpenAI API (Moderation, Classification) |
 | Deployment     | Railway                                 |
