@@ -122,17 +122,20 @@ solveit-saas/
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/solveit.git
-cd solveit
+git clone https://github.com/Abdallemo/solveit.git
+cd solveit/web
 
 # Install dependencies
-npm install
+pnpm install
 
 # Configure environment variables
 cp .env.example .env
 
 # Run development server
 npm run dev
+# new terminal
+pnpm stripe
+
 cd .. & cd server
 make run
 
