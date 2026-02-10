@@ -1,4 +1,4 @@
-APP_NAME := main.exe
+APP_NAME := main
 BIN_DIR := bin
 SRC_DIR := ./cmd
 

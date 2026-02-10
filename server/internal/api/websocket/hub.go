@@ -155,11 +155,11 @@ func (h *WsHub) cleanUp(conn *websocket.Conn, channelID string, appChan chan Inc
 }
 
 func (h *WsHub) sendToChannel(channelID string, payload any) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.mu.RLock()
+	conns := append([]*websocket.Conn(nil), h.conns[channelID]...)
+	h.mu.RUnlock()
 
-	conns := h.conns[channelID]
-	active := conns[:0]
+	var alive []*websocket.Conn
 	for _, conn := range conns {
 		conn.SetWriteDeadline(time.Now().Add(writeWait))
 		if err := conn.WriteJSON(payload); err != nil {
@@ -167,7 +167,10 @@ func (h *WsHub) sendToChannel(channelID string, payload any) {
 			conn.Close()
 			continue
 		}
-		active = append(active, conn)
+		alive = append(alive, conn)
 	}
-	h.conns[channelID] = active
+
+	h.mu.Lock()
+	h.conns[channelID] = alive
+	h.mu.Unlock()
 }
